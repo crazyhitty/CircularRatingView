@@ -27,6 +27,8 @@ package com.crazyhitty.chdev.ks.customratingview;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 
+import com.crazyhitty.chdev.ks.circularratingview.CircularRatingView;
+
 public class MainActivity extends AppCompatActivity {
 
     @Override
@@ -34,13 +36,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        final RatingView ratingView = (RatingView) findViewById(R.id.rating_view);
+        final CircularRatingView ratingView = (CircularRatingView) findViewById(R.id.rating_view);
 
         ratingView.post(new Runnable() {
             @Override
             public void run() {
                 ratingView.setMax(100);
-                ratingView.setProgress(75);
+                ratingView.setProgress(99);
             }
         });
     }

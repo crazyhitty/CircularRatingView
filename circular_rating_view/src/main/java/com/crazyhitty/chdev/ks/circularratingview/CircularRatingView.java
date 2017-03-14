@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package com.crazyhitty.chdev.ks.customratingview;
+package com.crazyhitty.chdev.ks.circularratingview;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -52,22 +52,23 @@ import java.util.Locale;
  * Description: Unavailable
  */
 
-public class RatingView extends View {
+public class CircularRatingView extends View {
     private static final String TAG = "RatingView";
 
-    private static final float ARC_STROKE_WIDTH = 50.0f;
+    private static final float ARC_NORMAL_STROKE_WIDTH = 18.0f;
+    private static final float ARC_SHINING_STROKE_WIDTH = ARC_NORMAL_STROKE_WIDTH * 3;
     private static final float ARC_START_ANGLE = 270.0f;
     private static final float DEFAULT_MAX = 100.0f;
 
-    private Paint arcPaint;
-    private Paint arcPaint2;
+    private Paint arcShiningPaint;
+    private Paint arcNormalPaint;
     private Paint linePaint;
     private Paint textPaint;
 
     private RectF arcRect;
     private Rect textRect;
-    private int[] colors;
-    private int[] colors1;
+    private int[] colorsShining;
+    private int[] colorsNormal;
 
     private String rating = "0.0";
 
@@ -75,26 +76,32 @@ public class RatingView extends View {
     private float max = DEFAULT_MAX;
     private float progress = 0;
     private float sweepAngle = 0;
+    private float arcShiningStartAngleDifference = 0;
+    private float arcNormalStartAngleDifference = 0;
 
-    public RatingView(Context context) {
+    public CircularRatingView(Context context) {
         super(context);
         initPaint();
     }
 
-    public RatingView(Context context, AttributeSet attrs) {
+    public CircularRatingView(Context context, AttributeSet attrs) {
         super(context, attrs);
         initPaint();
     }
 
-    public RatingView(Context context, AttributeSet attrs, int defStyleAttr) {
+    public CircularRatingView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         initPaint();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-    public RatingView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+    public CircularRatingView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
         initPaint();
+    }
+
+    public float getMax() {
+        return max;
     }
 
     public void setMax(int max) {
@@ -102,8 +109,12 @@ public class RatingView extends View {
         invalidate();
     }
 
+    public float getProgress() {
+        return progress;
+    }
+
     public void setProgress(int progress) {
-        if (progress > max) {
+        if (progress > max - 1) {
             throw new IllegalArgumentException("Progress cannot be larger than Max value");
         }
         this.progress = progress;
@@ -116,17 +127,17 @@ public class RatingView extends View {
     private void initPaint() {
         setLayerType(LAYER_TYPE_SOFTWARE, null);
 
-        arcPaint = new Paint();
-        arcPaint.setAntiAlias(true);
-        arcPaint.setStyle(Paint.Style.STROKE);
-        arcPaint.setStrokeCap(Paint.Cap.ROUND);
-        arcPaint.setStrokeWidth(ARC_STROKE_WIDTH);
+        arcShiningPaint = new Paint();
+        arcShiningPaint.setAntiAlias(true);
+        arcShiningPaint.setStyle(Paint.Style.STROKE);
+        arcShiningPaint.setStrokeCap(Paint.Cap.ROUND);
+        arcShiningPaint.setStrokeWidth(ARC_SHINING_STROKE_WIDTH);
 
-        arcPaint2 = new Paint();
-        arcPaint2.setAntiAlias(true);
-        arcPaint2.setStyle(Paint.Style.STROKE);
-        arcPaint2.setStrokeCap(Paint.Cap.ROUND);
-        arcPaint2.setStrokeWidth(ARC_STROKE_WIDTH / 3);
+        arcNormalPaint = new Paint();
+        arcNormalPaint.setAntiAlias(true);
+        arcNormalPaint.setStyle(Paint.Style.STROKE);
+        arcNormalPaint.setStrokeCap(Paint.Cap.ROUND);
+        arcNormalPaint.setStrokeWidth(ARC_NORMAL_STROKE_WIDTH);
 
         linePaint = new Paint();
         linePaint.setColor(Color.BLACK);
@@ -157,15 +168,18 @@ public class RatingView extends View {
 
     private void initDimensions(int size) {
         this.size = size;
-        arcRect = new RectF(ARC_STROKE_WIDTH / 2, ARC_STROKE_WIDTH / 2, size - ARC_STROKE_WIDTH / 2, size - ARC_STROKE_WIDTH / 2);
+        arcRect = new RectF(ARC_SHINING_STROKE_WIDTH / 2, ARC_SHINING_STROKE_WIDTH / 2, size - ARC_SHINING_STROKE_WIDTH / 2, size - ARC_SHINING_STROKE_WIDTH / 2);
 
         textRect = new Rect();
         textPaint.getTextBounds(rating, 0, rating.length(), textRect);
 
-        colors = new int[]{Color.TRANSPARENT,
+        colorsShining = new int[]{Color.TRANSPARENT,
                 ContextCompat.getColor(getContext(), R.color.endColor)};
-        colors1 = new int[]{ContextCompat.getColor(getContext(), R.color.startColor),
+        colorsNormal = new int[]{ContextCompat.getColor(getContext(), R.color.startColor),
                 ContextCompat.getColor(getContext(), R.color.endColor)};
+
+        arcShiningStartAngleDifference = (float) Math.toDegrees(Math.atan((ARC_SHINING_STROKE_WIDTH / 2) / ((arcRect.height() / 2) - (ARC_SHINING_STROKE_WIDTH / 2))));
+        arcNormalStartAngleDifference = (float) Math.toDegrees(Math.atan((ARC_NORMAL_STROKE_WIDTH / 2) / ((arcRect.height() / 2) - (ARC_NORMAL_STROKE_WIDTH / 2))));
 
         changeArcProgress();
     }
@@ -174,10 +188,10 @@ public class RatingView extends View {
         sweepAngle = progress * (360 / max);
         float[] positions = new float[]{0.0f / 360.0f, sweepAngle / 360.0f};
 
-        Shader shader1 = new SweepGradient(size / 2, size / 2, colors, positions);
-        Shader shader2 = new RadialGradient(size / 2, size / 2, 25.0f, Color.TRANSPARENT, colors[1], Shader.TileMode.MIRROR);
+        Shader shader1 = new SweepGradient(size / 2, size / 2, colorsShining, positions);
+        Shader shader2 = new RadialGradient(size / 2, size / 2, 25.0f, colorsShining[0], colorsShining[1], Shader.TileMode.MIRROR);
 
-        float shaderRotation = 262f;
+        float shaderRotation = 270f;
 
         Matrix shaderMatrix = new Matrix();
         shaderMatrix.setRotate(shaderRotation, size / 2, size / 2);
@@ -187,21 +201,21 @@ public class RatingView extends View {
 
         ComposeShader composeShader = new ComposeShader(shader1, shader2, PorterDuff.Mode.MULTIPLY);
 
-        arcPaint.setShader(composeShader);
+        arcShiningPaint.setShader(composeShader);
 
-        Shader shader3 = new SweepGradient(size / 2, size / 2, colors1, positions);
-        shaderMatrix.setRotate(shaderRotation, size / 2, size / 2);
+        Shader shader3 = new SweepGradient(size / 2, size / 2, colorsNormal, positions);
+        shaderMatrix.setRotate(shaderRotation - arcNormalStartAngleDifference, size / 2, size / 2);
         shader3.setLocalMatrix(shaderMatrix);
 
-        arcPaint2.setShader(shader3);
+        arcNormalPaint.setShader(shader3);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        canvas.drawArc(arcRect, ARC_START_ANGLE, sweepAngle - 2, false, arcPaint);
-        canvas.drawArc(arcRect, ARC_START_ANGLE, sweepAngle, false, arcPaint2);
+        canvas.drawArc(arcRect, ARC_START_ANGLE + arcShiningStartAngleDifference, sweepAngle - (2 * arcShiningStartAngleDifference) + arcNormalStartAngleDifference, false, arcShiningPaint);
+        canvas.drawArc(arcRect, ARC_START_ANGLE, sweepAngle, false, arcNormalPaint);
 
         canvas.drawText(rating, size / 2, size / 2 + textRect.height() / 2, textPaint);
 

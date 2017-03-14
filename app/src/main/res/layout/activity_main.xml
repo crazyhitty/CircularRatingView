@@ -36,7 +36,7 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.crazyhitty.chdev.ks.customratingview.MainActivity">
 
-    <com.crazyhitty.chdev.ks.customratingview.RatingView
+    <com.crazyhitty.chdev.ks.circularratingview.CircularRatingView
         android:id="@+id/rating_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"/>
